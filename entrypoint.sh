@@ -136,6 +136,9 @@ step "Creating development theme"
 
 theme_push_log="$(mktemp)"
 
+# Fixes https://github.com/actions/checkout/issues/1169
+git config --global --add safe.directory /github/workspace
+
 command="shopify theme push --development --path=$theme_root --json | tee $theme_push_log"
 
 log $command
