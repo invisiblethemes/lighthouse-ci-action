@@ -1,4 +1,4 @@
-FROM invisiblethemes/gha-shopify-cli:1.0.2
+FROM invisiblethemes/gha-shopify-cli:1.0.3
 
 ###
 # Chrome in Docker fix
