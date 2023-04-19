@@ -83,6 +83,47 @@ api_request() {
   cat "$out"
 }
 
+exp_backoff() {
+  local command="$1"
+  local max_attempts="${2:-5}"
+  local attempt=0
+  local delay=1
+
+  while [ "$attempt" -lt "$max_attempts" ]; do
+    local_log="$(mktemp)"
+    set -o pipefail
+
+    # Run the command and store the output
+    eval "$command" | tee $local_log
+
+    local exit_code=$?
+
+    # Check if the command contains anything about rate limiting
+    if [ "$exit_code" -eq 1 ] && (cat "$local_log" | grep -q "429" || cat "$local_log" | grep -q "Reduce request rates"); then
+      # If there's a rate limit error, increment the attempt counter and apply the delay
+      attempt=$((attempt + 1))
+      echo "Attempt $attempt of $max_attempts failed due to rate limit, retrying in $delay seconds..."
+      sleep $delay
+
+      # Calculate the next delay, doubling it each time
+      delay=$((delay * 2))
+    elif [ "$exit_code" -eq 1 ]; then
+      # If the exit code is 1 (but not due to rate limiting), exit with error
+      echo "not 429 error"
+      exit 1
+    else
+      # If the exit code is not 1, break
+      echo "success"
+      break
+    fi
+  done
+
+  if [ "$attempt" -eq "$max_attempts" ]; then
+    echo "Maximum attempts reached, aborting." >&2
+    exit 1
+  fi
+}
+
 cleanup() {
   if [[ -n "${theme+x}" ]]; then
     step "Disposing development theme"
@@ -103,7 +144,6 @@ cleanup() {
 
 trap 'cleanup $?' EXIT
 
-log npm install -g @lhci/cli@0.10.x puppeteer
 npm install -g @lhci/cli@0.10.x puppeteer
 
 if ! is_installed shopify; then
@@ -123,9 +163,7 @@ export SHOPIFY_CLI_TTY=0
 export SHOPIFY_CLI_STACKTRACE=1
 export SHOPIFY_FLAG_STORE="${SHOP_STORE#*(https://|http://)}"
 export SHOPIFY_CLI_THEME_TOKEN="$SHOP_THEME_TOKEN"
-
 host="https://${SHOP_STORE#*(https://|http://)}"
-theme_root="${THEME_ROOT:-.}"
 
 # Use the $SHOP_PASSWORD defined as a Github Secret for password protected stores.
 [[ -z ${SHOP_PASSWORD+x} ]] && shop_password='' || shop_password="$SHOP_PASSWORD"
@@ -134,16 +172,18 @@ log "Will run Lighthouse CI on $host"
 
 step "Creating development theme"
 
-theme_push_log="$(mktemp)"
-
 # Fixes https://github.com/actions/checkout/issues/1169
 git config --global --add safe.directory /github/workspace
 
-command="shopify theme push --development --path=$theme_root --json | tee $theme_push_log"
+theme_root="${THEME_ROOT:-.}"
+theme_command="push --development --json --path=$theme_root"
+theme_push_log="$(mktemp)"
+command="shopify theme $theme_command | tee $theme_push_log"
 
 log $command
 
-eval $command
+# Run command with exponential backoff in case we get rate-limited
+exp_backoff "$command"
 
 # Extract JSON from shopify CLI output
 json_output="$(cat $theme_push_log | grep -o '{.*}')"
