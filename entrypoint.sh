@@ -144,7 +144,7 @@ cleanup() {
 
 trap 'cleanup $?' EXIT
 
-npm install -g @lhci/cli@0.10.x puppeteer
+npm install -g @lhci/cli@0.12.x puppeteer
 
 if ! is_installed shopify; then
   echo "shopify cli is not installed" >&2
