@@ -236,6 +236,7 @@ ci:
         - "--disable-setuid-sandbox"
         - "--disable-dev-shm-usage"
         - "--disable-gpu"
+      headless: new
   upload:
     target: temporary-public-storage
   assert:
