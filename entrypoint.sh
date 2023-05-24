@@ -14,6 +14,7 @@
 [[ -n "$INPUT_THEME_TOKEN" ]]       && export SHOP_THEME_TOKEN="$INPUT_THEME_TOKEN"
 [[ -n "$INPUT_STORE" ]]             && export SHOP_STORE="$INPUT_STORE"
 [[ -n "$INPUT_PASSWORD" ]]          && export SHOP_PASSWORD="$INPUT_PASSWORD"
+[[ -n "$INPUT_THEME_ID" ]]          && export SHOP_THEME_ID="$INPUT_THEME_ID"
 [[ -n "$INPUT_PRODUCT_HANDLE" ]]    && export SHOP_PRODUCT_HANDLE="$INPUT_PRODUCT_HANDLE"
 [[ -n "$INPUT_COLLECTION_HANDLE" ]] && export SHOP_COLLECTION_HANDLE="$INPUT_COLLECTION_HANDLE"
 [[ -n "$INPUT_THEME_ROOT" ]]        && export THEME_ROOT="$INPUT_THEME_ROOT"
@@ -83,67 +84,6 @@ api_request() {
   cat "$out"
 }
 
-exp_backoff() {
-  local command="$1"
-  local max_attempts="${2:-5}"
-  local attempt=0
-  local delay=1
-
-  while [ "$attempt" -lt "$max_attempts" ]; do
-    local_log="$(mktemp)"
-    set -o pipefail
-
-    # Run the command and store the output
-    eval "$command" | tee $local_log
-
-    local exit_code=$?
-
-    # Check if the command contains anything about rate limiting
-    if [ "$exit_code" -eq 1 ] && (cat "$local_log" | grep -q "429" || cat "$local_log" | grep -q "Reduce request rates"); then
-      # If there's a rate limit error, increment the attempt counter and apply the delay
-      attempt=$((attempt + 1))
-      echo "Attempt $attempt of $max_attempts failed due to rate limit, retrying in $delay seconds..."
-      sleep $delay
-
-      # Calculate the next delay, doubling it each time
-      delay=$((delay * 2))
-    elif [ "$exit_code" -eq 1 ]; then
-      # If the exit code is 1 (but not due to rate limiting), exit with error
-      echo "not 429 error"
-      exit 1
-    else
-      # If the exit code is not 1, break
-      echo "success"
-      break
-    fi
-  done
-
-  if [ "$attempt" -eq "$max_attempts" ]; then
-    echo "Maximum attempts reached, aborting." >&2
-    exit 1
-  fi
-}
-
-cleanup() {
-  if [[ -n "${theme+x}" ]]; then
-    step "Disposing development theme"
-    shopify theme delete -d -f
-    shopify logout
-  fi
-
-  if [[ -f "lighthouserc.yml" ]]; then
-    rm "lighthouserc.yml"
-  fi
-
-  if [[ -f "setPreviewCookies.js" ]]; then
-    rm "setPreviewCookies.js"
-  fi
-
-  return $1
-}
-
-trap 'cleanup $?' EXIT
-
 npm install -g @lhci/cli@0.12.x puppeteer
 
 if ! is_installed shopify; then
@@ -159,43 +99,13 @@ mkdir -p ~/.config/shopify && cat <<-YAML > ~/.config/shopify/config
 enabled = false
 YAML
 
-export SHOPIFY_CLI_TTY=0
-export SHOPIFY_CLI_STACKTRACE=1
-export SHOPIFY_FLAG_STORE="${SHOP_STORE#*(https://|http://)}"
-export SHOPIFY_CLI_THEME_TOKEN="$SHOP_THEME_TOKEN"
-host="https://${SHOP_STORE#*(https://|http://)}"
-
 # Use the $SHOP_PASSWORD defined as a Github Secret for password protected stores.
 [[ -z ${SHOP_PASSWORD+x} ]] && shop_password='' || shop_password="$SHOP_PASSWORD"
-
-log "Will run Lighthouse CI on $host"
 
 step "Creating development theme"
 
 # Fixes https://github.com/actions/checkout/issues/1169
 git config --global --add safe.directory /github/workspace
-
-theme_root="${THEME_ROOT:-.}"
-theme_command="push --development --json --path=$theme_root"
-theme_push_log="$(mktemp)"
-command="shopify theme $theme_command | tee $theme_push_log"
-
-log $command
-
-# Run command with exponential backoff in case we get rate-limited
-exp_backoff "$command"
-
-# Extract JSON from shopify CLI output
-json_output="$(cat $theme_push_log | grep -o '{.*}')"
-
-preview_url="$(echo "$json_output" | tail -n 1 | jq -r '.theme.preview_url')"
-editor_url="$(echo "$json_output" | tail -n 1 | jq -r '.theme.editor_url')"
-preview_id="$(echo "$json_output" | tail -n 1 | jq -r '.theme.id')"
-
-if [ $? -eq 1 ]; then
-  echo "Error pushing theme" >&2
-  exit 1
-fi
 
 step "Configuring Lighthouse CI"
 
@@ -218,9 +128,19 @@ else
 fi
 
 # Disable redirects + preview bar
-query_string="?preview_theme_id=${preview_id}&_fd=0&pb=0"
+host="https://${SHOP_STORE#*(https://|http://)}"
+
+if [[ -n "$SHOP_THEME_ID" ]]; then
+  query_string="?preview_theme_id=$SHOP_THEME_ID&_fd=0&pb=0"
+  preview_url="$host/$query_string"
+else
+  preview_url=$host
+fi
+
 min_score_performance="${LHCI_MIN_SCORE_PERFORMANCE:-0.6}"
 min_score_accessibility="${LHCI_MIN_SCORE_ACCESSIBILITY:-0.9}"
+
+log "Will run Lighthouse CI on $host"
 
 cat <<- EOF > lighthouserc.yml
 ci:

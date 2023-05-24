@@ -23,6 +23,9 @@ inputs:
     description: 'The root folder for the theme files that will be uploaded (default: ".")'
     required: false
     default: '.'
+  theme_id:
+    description: 'Theme ID to run against. Defaults to live theme'
+    required: false
   lhci_github_app_token:
     description: 'Lighthouse CI GitHub app token'
     required: false
@@ -40,4 +43,3 @@ inputs:
 runs:
   using: 'docker'
   image: 'Dockerfile'
-  post-entrypoint: '/post-entrypoint.sh'
