@@ -112,12 +112,12 @@ fi
 
 # Disable redirects + preview bar
 host="https://${SHOP_STORE#*(https://|http://)}"
+query_string=""
+preview_url=$host
 
 if [[ -n "${SHOP_THEME_ID+x}" ]]; then
   query_string="?preview_theme_id=$SHOP_THEME_ID&_fd=0&pb=0"
   preview_url="$host/$query_string"
-else
-  preview_url=$host
 fi
 
 min_score_performance="${LHCI_MIN_SCORE_PERFORMANCE:-0.6}"
