@@ -86,23 +86,7 @@ api_request() {
 
 npm install -g @lhci/cli@0.12.x puppeteer
 
-if ! is_installed shopify; then
-  echo "shopify cli is not installed" >&2
-  exit 1
-fi
-
-step "Configuring shopify CLI"
-
-# Disable analytics
-mkdir -p ~/.config/shopify && cat <<-YAML > ~/.config/shopify/config
-[analytics]
-enabled = false
-YAML
-
-# Use the $SHOP_PASSWORD defined as a Github Secret for password protected stores.
-[[ -z ${SHOP_PASSWORD+x} ]] && shop_password='' || shop_password="$SHOP_PASSWORD"
-
-step "Creating development theme"
+step "Configuring git"
 
 # Fixes https://github.com/actions/checkout/issues/1169
 git config --global --add safe.directory /github/workspace
