@@ -85,6 +85,9 @@ api_request() {
 
 npm install -g @lhci/cli@0.12.x puppeteer
 
+# Use the $SHOP_PASSWORD defined as a Github Secret for password protected stores.
+[[ -z ${SHOP_PASSWORD+x} ]] && shop_password='' || shop_password="$SHOP_PASSWORD"
+
 step "Configuring git"
 
 # Fixes https://github.com/actions/checkout/issues/1169
