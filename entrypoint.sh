@@ -17,7 +17,6 @@
 [[ -n "$INPUT_THEME_ID" ]]          && export SHOP_THEME_ID="$INPUT_THEME_ID"
 [[ -n "$INPUT_PRODUCT_HANDLE" ]]    && export SHOP_PRODUCT_HANDLE="$INPUT_PRODUCT_HANDLE"
 [[ -n "$INPUT_COLLECTION_HANDLE" ]] && export SHOP_COLLECTION_HANDLE="$INPUT_COLLECTION_HANDLE"
-[[ -n "$INPUT_THEME_ROOT" ]]        && export THEME_ROOT="$INPUT_THEME_ROOT"
 
 # Optional, these are used by Lighthouse CI to add pass/fail checks on
 # the GitHub Pull Request.
@@ -114,7 +113,7 @@ fi
 # Disable redirects + preview bar
 host="https://${SHOP_STORE#*(https://|http://)}"
 
-if [[ -n "$SHOP_THEME_ID" ]]; then
+if [[ -n "${SHOP_THEME_ID+x}" ]]; then
   query_string="?preview_theme_id=$SHOP_THEME_ID&_fd=0&pb=0"
   preview_url="$host/$query_string"
 else
