@@ -18,4 +18,4 @@ ENV PATH="$npm_config_prefix:${PATH}"
 RUN mkdir -p "$npm_config_prefix" \
   && chmod -R 777 "$npm_config_prefix" \
   && umask 000 \
-  && npm install -g @lhci/cli@0.12.x puppeteer
+  && npm install -g @lhci/cli@0.12.x puppeteer@21.5.x
