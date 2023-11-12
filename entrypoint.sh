@@ -161,23 +161,6 @@ cat <<-EOF > setPreviewCookies.js
 module.exports = async (browser) => {
   // launch browser for LHCI
   console.error('Getting a new page...');
-  const page = await browser.newPage();
-  // Get password cookie if password is set
-  if ('$shop_password' !== '') {
-    console.error('Getting password cookie...');
-    await page.goto('$host/password$query_string');
-    await page.waitForSelector('form[action*=password] input[type="password"]');
-    await page.\$eval('form[action*=password] input[type="password"]', input => input.value = '$shop_password');
-    await Promise.all([
-      page.waitForNavigation(),
-      page.\$eval('form[action*=password]', form => form.submit()),
-    ])
-  }
-  // Get preview cookie
-  console.error('Getting preview cookie...');
-  await page.goto('$preview_url');
-  // close session for next run
-  await page.close();
 };
 EOF
 
