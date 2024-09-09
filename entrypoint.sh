@@ -83,7 +83,7 @@ api_request() {
   cat "$out"
 }
 
-npm install -g @lhci/cli@0.12.x puppeteer
+npm install -g @lhci/cli@0.14.x puppeteer
 
 # Use the $SHOP_PASSWORD defined as a Github Secret for password protected stores.
 [[ -z ${SHOP_PASSWORD+x} ]] && shop_password='' || shop_password="$SHOP_PASSWORD"
